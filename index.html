@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>看番 · 进度表</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #e8eef4;
+      --bg-deep: #d4dde8;
+      --surface: #f7fafc;
+      --surface-2: #ffffff;
+      --ink: #1a2332;
+      --muted: #5a6b7d;
+      --line: #c5d0dc;
+      --line-soft: #dce4ed;
+      --accent: #0d9488;
+      --accent-deep: #0f766e;
+      --accent-soft: #ccfbf1;
+      --danger: #c2410c;
+      --danger-soft: #ffedd5;
+      --shadow: 0 18px 50px rgba(26, 35, 50, 0.10);
+      --radius: 16px;
+      --ep-w: 52px;
+      --name-w: 180px;
+      --note-w: 160px;
+      --drag-w: 28px;
+      --check-w: 32px;
+      --split: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Noto Sans SC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, #a8e6df55, transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, #93c5fd44, transparent 50%),
+        linear-gradient(165deg, var(--bg) 0%, var(--bg-deep) 100%);
+      padding: 32px 24px 48px;
+    }
+
+    .shell {
+      max-width: 1380px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      animation: rise 0.55s ease both;
+    }
+
+    .brand {
+      font-family: Outfit, "Noto Sans SC", sans-serif;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .brand span { color: var(--accent); }
+
+    .tagline {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+      padding: 10px 14px;
+      transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(13, 148, 136, 0.28);
+    }
+    .btn-primary:hover { background: var(--accent-deep); }
+
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .btn-ghost:hover { background: var(--accent-soft); border-color: var(--accent); }
+
+    .btn-ghost:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .board {
+      background: var(--surface);
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: rise 0.65s ease 0.06s both;
+    }
+
+    .scroll {
+      overflow-x: auto;
+      overflow-y: visible;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 1100px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: linear-gradient(180deg, #f0f5f9, #e8eef4);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-align: center;
+      padding: 14px 6px;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    thead th.check-h {
+      width: var(--check-w);
+      min-width: var(--check-w);
+      padding: 14px 0;
+      position: sticky;
+      left: 0;
+      z-index: 4;
+      background: linear-gradient(180deg, #f0f5f9, #e8eef4);
+    }
+
+    thead th.drag-h {
+      width: var(--drag-w);
+      min-width: var(--drag-w);
+      padding: 14px 0;
+      position: sticky;
+      left: var(--check-w);
+      z-index: 4;
+      background: linear-gradient(180deg, #f0f5f9, #e8eef4);
+    }
+
+    thead th.name-h {
+      text-align: left;
+      padding-left: 8px;
+      width: var(--name-w);
+      min-width: var(--name-w);
+      max-width: var(--name-w);
+      position: sticky;
+      left: calc(var(--check-w) + var(--drag-w));
+      z-index: 4;
+      background: linear-gradient(180deg, #f0f5f9, #e8eef4);
+      transition: width 0.2s ease, min-width 0.2s ease, max-width 0.2s ease;
+    }
+
+    thead th.ep {
+      width: var(--ep-w);
+      min-width: var(--ep-w);
+    }
+
+    thead th.ep-split,
+    td.ep-split {
+      border-right: 2px solid var(--split);
+    }
+
+    thead th.note-h {
+      width: var(--note-w);
+      min-width: var(--note-w);
+      text-align: left;
+      padding-left: 12px;
+    }
+
+    thead th.ops {
+      width: 56px;
+      min-width: 56px;
+    }
+
+    tbody tr {
+      transition: background 0.18s ease, opacity 0.15s ease;
+    }
+
+    tbody tr:hover { background: #f0faf8; }
+    tbody tr:nth-child(even) { background: #fbfcfe; }
+    tbody tr:nth-child(even):hover { background: #f0faf8; }
+
+    tbody tr.selected,
+    tbody tr.selected:nth-child(even) {
+      background: #d1fae5;
+    }
+    tbody tr.selected:hover { background: #bbf7d0; }
+
+    tbody tr.dragging {
+      opacity: 0.45;
+      background: var(--accent-soft) !important;
+    }
+
+    tbody tr.drag-over {
+      box-shadow: inset 0 2px 0 0 var(--accent);
+    }
+
+    td {
+      border-bottom: 1px solid var(--line-soft);
+      vertical-align: middle;
+      height: 52px;
+    }
+
+    td.check-cell,
+    td.drag-cell {
+      position: sticky;
+      z-index: 1;
+      background: inherit;
+      text-align: center;
+      padding: 0;
+    }
+
+    td.check-cell {
+      left: 0;
+      width: var(--check-w);
+      min-width: var(--check-w);
+    }
+
+    td.drag-cell {
+      left: var(--check-w);
+      width: var(--drag-w);
+      min-width: var(--drag-w);
+    }
+
+    .row-check {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .grip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #9aabbc;
+      cursor: grab;
+      padding: 0;
+      font-size: 1rem;
+      letter-spacing: -0.12em;
+      line-height: 1;
+      user-select: none;
+      opacity: 0.55;
+      transition: opacity 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .grip:hover,
+    tr:hover .grip {
+      opacity: 1;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .grip:active { cursor: grabbing; }
+
+    td.name-cell {
+      position: sticky;
+      left: calc(var(--check-w) + var(--drag-w));
+      z-index: 1;
+      background: inherit;
+      padding: 6px 10px 6px 4px;
+      width: var(--name-w);
+      min-width: var(--name-w);
+      max-width: var(--name-w);
+      box-shadow: 4px 0 12px rgba(26, 35, 50, 0.04);
+      transition: width 0.2s ease, min-width 0.2s ease, max-width 0.2s ease;
+    }
+
+    .name-input,
+    .note-input {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--ink);
+      padding: 8px 10px;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .note-input {
+      font-weight: 400;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .name-input::placeholder,
+    .note-input::placeholder {
+      color: #9aabbc;
+      font-weight: 400;
+    }
+
+    .name-input:hover,
+    .note-input:hover {
+      background: rgba(255, 255, 255, 0.7);
+      border-color: var(--line-soft);
+    }
+
+    .name-input:focus,
+    .note-input:focus {
+      background: var(--surface-2);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+      color: var(--ink);
+    }
+
+    td.ep-cell { text-align: center; padding: 0; }
+
+    .tick {
+      width: 34px;
+      height: 34px;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      border: 1.5px solid var(--line);
+      background: var(--surface-2);
+      cursor: pointer;
+      transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        transform 0.15s ease,
+        box-shadow 0.18s ease;
+      user-select: none;
+      padding: 0;
+    }
+
+    .tick:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.12);
+    }
+
+    .tick.on {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+      animation: pop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+
+    .tick svg {
+      width: 16px;
+      height: 16px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.15s, transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
+      stroke: #fff;
+      stroke-width: 2.6;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .tick.on svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    td.note-cell {
+      padding: 6px 10px;
+      width: var(--note-w);
+      min-width: var(--note-w);
+    }
+
+    td.ops-cell {
+      text-align: center;
+      padding: 0 8px;
+    }
+
+    .del {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0;
+      opacity: 0.45;
+      transition: opacity 0.15s, background 0.15s, color 0.15s;
+    }
+
+    tr:hover .del { opacity: 1; }
+    .del:hover {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .empty {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    footer {
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      animation: rise 0.7s ease 0.12s both;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--line-soft);
+      border-radius: 999px;
+      overflow: hidden;
+      width: 160px;
+    }
+
+    .progress-bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #2dd4bf);
+      border-radius: inherit;
+      transition: width 0.35s ease;
+    }
+
+    .chart-panel {
+      margin-top: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px 22px 16px;
+      display: none;
+      animation: rise 0.4s ease both;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .search-box, .filter-select, .year-input, .month-select {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.86);
+      color: var(--ink);
+      border-radius: 9px;
+      padding: 9px 11px;
+      font: inherit;
+      outline: none;
+    }
+    .search-box { min-width: 210px; flex: 1; }
+    .search-box:focus, .filter-select:focus, .year-input:focus, .month-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(13,148,136,.12); }
+    .time-editor { display: flex; gap: 2px; align-items: center; padding: 0 3px; }
+    .year-input { width: 50px; padding: 7px 4px; }
+    .month-select { width: 62px; padding: 7px 3px; }
+    .time-dot { color: var(--muted); font-weight: 700; }
+
+    .chart-panel { overflow: hidden; }
+    .chart-bars { display: grid; gap: 12px; }
+    .chart-row { display: grid; grid-template-columns: 86px 1fr 36px; align-items: center; gap: 10px; }
+    .chart-label { color: var(--muted); font: 600 .82rem Outfit, "Noto Sans SC", sans-serif; text-align: right; }
+    .chart-track { height: 24px; background: #e5edf3; border-radius: 8px; overflow: hidden; }
+    .chart-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2dd4bf, #0f766e); box-shadow: 0 4px 12px rgba(13,148,136,.2); }
+    .chart-value { font-weight: 700; color: var(--ink); }
+
+    .chart-panel.show { display: block; }
+
+    .chart-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .chart-head h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .chart-head p {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .bars {
+      display: grid;
+      gap: 12px;
+      min-height: 120px;
+      padding: 8px 4px 0;
+      overflow-x: auto;
+    }
+
+    .bar-col {
+      flex: 1;
+      min-width: 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 160px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .bar-fill {
+      width: 42px;
+      border-radius: 10px 10px 4px 4px;
+      background: linear-gradient(180deg, #2dd4bf, var(--accent));
+      box-shadow: 0 8px 16px rgba(13, 148, 136, 0.22);
+      min-height: 4px;
+      transition: height 0.4s ease;
+      position: relative;
+    }
+
+    .bar-count {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .bar-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    .chart-empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 28px 8px;
+    }
+
+    #measure {
+      position: absolute;
+      visibility: hidden;
+      white-space: nowrap;
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0;
+      pointer-events: none;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.85); }
+      70% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 20px 12px 32px; }
+      header { flex-direction: column; align-items: stretch; }
+      .actions { justify-content: stretch; }
+      .actions button { flex: 1; }
+      :root { --ep-w: 46px; --note-w: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="measure" aria-hidden="true"></div>
+  <div class="shell">
+    <header>
+      <div>
+        <div class="brand">看番<span>·</span>进度表</div>
+        <p class="tagline">备注写 26.1 / 26.4 / 26.7 / 26.10，可按季度排序并生成图表</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn-ghost" id="btnExport">导出 CSV</button>
+        <button type="button" class="btn-ghost" id="btnSortAsc">时间顺序</button>
+        <button type="button" class="btn-ghost" id="btnSortDesc">时间倒序</button>
+        <button type="button" class="btn-ghost" id="btnToTop" disabled>选中置顶</button>
+        <button type="button" class="btn-ghost" id="btnChart">生成图表</button>
+        <button type="button" class="btn-primary" id="btnAdd">＋ 添加番剧</button>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <input class="search-box" id="searchInput" type="search" placeholder="搜索番剧名称或时间…" aria-label="搜索番剧" />
+      <select class="filter-select" id="filterSelect" aria-label="筛选番剧">
+        <option value="all">全部番剧</option>
+        <option value="watching">未看完</option>
+        <option value="complete">已看完</option>
+        <option value="timed">已有时间</option>
+        <option value="untimed">未填写时间</option>
+      </select>
+    </div>
+
+    <div class="board">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr id="headRow"></tr>
+          </thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" hidden>还没有番剧，点右上角「添加番剧」开始记录吧</div>
+    </div>
+
+    <section class="chart-panel" id="chartPanel" aria-live="polite">
+      <div class="chart-head">
+        <h2>各时期看番数量</h2>
+        <p id="chartHint">根据备注里的年份.月份统计</p>
+      </div>
+      <div class="bars" id="chartBars"></div>
+    </section>
+
+    <footer>
+      <span id="stats">0 / 0 集已看</span>
+      <div class="progress-bar" aria-hidden="true"><i id="bar"></i></div>
+    </footer>
+  </div>
+
+  <script>
+    const EPISODES = 13;
+    const COMPLETE_EPISODES = 12;
+    const STORAGE_KEY = "kanfan-tracker-v1";
+    const NAME_MIN = 140;
+    const NAME_MAX = 420;
+    const NAME_PAD = 36;
+    const TIME_RE = /(\d{2,4})\.(1|4|7|10)\b/;
+
+    const checkSvg = `<svg viewBox="0 0 24 24"><polyline points="5 12 10 17 19 7"/></svg>`;
+
+    /** @type {{ id: string, name: string, note: string, watched: boolean[] }[]} */
+    let rows = load();
+    let dragFrom = null;
+    const selected = new Set();
+
+    const headRow = document.getElementById("headRow");
+    const body = document.getElementById("body");
+    const empty = document.getElementById("empty");
+    const stats = document.getElementById("stats");
+    const bar = document.getElementById("bar");
+    const measureEl = document.getElementById("measure");
+    const btnToTop = document.getElementById("btnToTop");
+    const chartPanel = document.getElementById("chartPanel");
+    const chartBars = document.getElementById("chartBars");
+    const chartHint = document.getElementById("chartHint");
+    const searchInput = document.getElementById("searchInput");
+    const filterSelect = document.getElementById("filterSelect");
+
+    function uid() {
+      return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+    }
+
+    function blankRow(name = "") {
+      return { id: uid(), name, note: "", watched: Array(EPISODES).fill(false) };
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [blankRow(""), blankRow(""), blankRow("")];
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data) || !data.length) return [blankRow("")];
+        return data.map((r) => ({
+          id: r.id || uid(),
+          name: r.name || "",
+          note: r.note || "",
+          watched: Array.from({ length: EPISODES }, (_, i) => Boolean(r.watched && r.watched[i])),
+        }));
+      } catch {
+        return [blankRow(""), blankRow(""), blankRow("")];
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      updateStats();
+    }
+
+    function parseNoteTime(note) {
+      const m = String(note || "").match(TIME_RE);
+      if (!m) return null;
+      let year = Number(m[1]);
+      const month = Number(m[2]);
+      if (year < 100) year += 2000;
+      return { year, month, key: year * 100 + month, label: `${year}年${month}月` };
+    }
+
+    function visibleRows() {
+      const query = searchInput.value.trim().toLowerCase();
+      const filter = filterSelect.value;
+      return rows.map((row, rowIndex) => ({ row, rowIndex })).filter(({ row }) => {
+        const done = row.watched.filter(Boolean).length >= COMPLETE_EPISODES;
+        const hasTime = Boolean(parseNoteTime(row.note));
+        const matchesQuery = !query || `${row.name} ${row.note}`.toLowerCase().includes(query);
+        const matchesFilter = filter === "all" || (filter === "watching" && !done) ||
+          (filter === "complete" && done) || (filter === "timed" && hasTime) ||
+          (filter === "untimed" && !hasTime);
+        return matchesQuery && matchesFilter;
+      });
+    }
+
+    function exportCsv() {
+      const headers = ["番剧名称", ...Array.from({ length: EPISODES }, (_, i) => `第${i + 1}集`), "时间"];
+      const csvEscape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+      const lines = [headers, ...rows.map((r) => [r.name, ...r.watched.map((v) => v ? "已看" : "未看"), r.note])]
+        .map((line) => line.map(csvEscape).join(","));
+      const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `kanfan-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function textWidth(text) {
+      measureEl.textContent = text || "";
+      return measureEl.offsetWidth;
+    }
+
+    function updateNameColumnWidth() {
+      let max = textWidth("番剧名称");
+      rows.forEach((r) => {
+        max = Math.max(max, textWidth(r.name || "输入番剧名称…"));
+      });
+      const w = Math.min(NAME_MAX, Math.max(NAME_MIN, Math.ceil(max) + NAME_PAD));
+      document.documentElement.style.setProperty("--name-w", w + "px");
+    }
+
+    function updateSelectUi() {
+      btnToTop.disabled = selected.size === 0;
+      const allBox = document.getElementById("checkAll");
+      if (!allBox) return;
+      const ids = rows.map((r) => r.id);
+      const n = ids.filter((id) => selected.has(id)).length;
+      allBox.checked = ids.length > 0 && n === ids.length;
+      allBox.indeterminate = n > 0 && n < ids.length;
+    }
+
+    function buildHead() {
+      const eps = Array.from({ length: EPISODES }, (_, i) => {
+        const split = i === 11 ? " ep-split" : "";
+        return `<th class="ep${split}">第${i + 1}集</th>`;
+      }).join("");
+
+      headRow.innerHTML =
+        `<th class="check-h"><input type="checkbox" class="row-check" id="checkAll" title="全选"></th>` +
+        `<th class="drag-h" title="拖动排序"></th>` +
+        `<th class="name-h">番剧名称</th>` +
+        eps +
+        `<th class="note-h">时间</th>` +
+        `<th class="ops"></th>`;
+
+      document.getElementById("checkAll").addEventListener("change", (e) => {
+        const on = e.target.checked;
+        rows.forEach((r) => {
+          if (on) selected.add(r.id);
+          else selected.delete(r.id);
+        });
+        render();
+      });
+    }
+
+    function clearDragOver() {
+      body.querySelectorAll("tr.drag-over").forEach((el) => el.classList.remove("drag-over"));
+    }
+
+    function sortByTime(desc) {
+      rows.sort((a, b) => {
+        const ta = parseNoteTime(a.note);
+        const tb = parseNoteTime(b.note);
+        if (!ta && !tb) return 0;
+        if (!ta) return 1;
+        if (!tb) return -1;
+        return desc ? tb.key - ta.key : ta.key - tb.key;
+      });
+      save();
+      render();
+    }
+
+    function moveSelectedToTop() {
+      if (!selected.size) return;
+      const picked = [];
+      const rest = [];
+      rows.forEach((r) => {
+        if (selected.has(r.id)) picked.push(r);
+        else rest.push(r);
+      });
+      rows = picked.concat(rest);
+      save();
+      render();
+    }
+
+    function drawChart() {
+      const counts = new Map();
+      let timed = 0;
+      rows.forEach((r) => {
+        const t = parseNoteTime(r.note);
+        if (!t) return;
+        timed += 1;
+        const prev = counts.get(t.key) || { label: t.label, count: 0 };
+        prev.count += 1;
+        counts.set(t.key, prev);
+      });
+
+      const items = [...counts.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([, v]) => v);
+
+      chartPanel.classList.add("show");
+      chartHint.textContent = timed
+        ? `共 ${timed} 部有备注时间 · 无时间的 ${rows.length - timed} 部未计入`
+        : "备注里还没有 26.1 这种时间，无法统计";
+
+      if (!items.length) {
+        chartBars.innerHTML = `<div class="chart-empty">请在备注中填写如 26.1、26.4、26.7、26.10</div>`;
+        chartPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return;
+      }
+
+      const max = Math.max(...items.map((i) => i.count), 1);
+      chartBars.innerHTML = "";
+      items.forEach((item) => {
+        const col = document.createElement("div");
+        col.className = "chart-row";
+        const track = document.createElement("div");
+        track.className = "chart-track";
+        const fill = document.createElement("div");
+        fill.className = "chart-fill";
+        fill.style.width = `${Math.max(4, (item.count / max) * 100)}%`;
+        const num = document.createElement("span");
+        num.className = "chart-value";
+        num.textContent = String(item.count);
+        track.appendChild(fill);
+        const label = document.createElement("div");
+        label.className = "chart-label";
+        label.textContent = item.label;
+        col.appendChild(label);
+        col.appendChild(track);
+        col.appendChild(num);
+        chartBars.appendChild(col);
+      });
+      chartPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function render() {
+      body.innerHTML = "";
+      const filtered = visibleRows();
+      empty.hidden = filtered.length > 0;
+      empty.textContent = rows.length ? "没有符合当前搜索或筛选条件的番剧" : "还没有番剧，点击右上角“添加番剧”开始记录";
+      updateNameColumnWidth();
+
+      filtered.forEach(({ row, rowIndex }) => {
+        const tr = document.createElement("tr");
+        tr.dataset.index = String(rowIndex);
+        if (selected.has(row.id)) tr.classList.add("selected");
+
+        const checkTd = document.createElement("td");
+        checkTd.className = "check-cell";
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.className = "row-check";
+        box.checked = selected.has(row.id);
+        box.title = "选中这一行";
+        box.addEventListener("change", () => {
+          if (box.checked) selected.add(row.id);
+          else selected.delete(row.id);
+          tr.classList.toggle("selected", box.checked);
+          updateSelectUi();
+        });
+        checkTd.appendChild(box);
+        tr.appendChild(checkTd);
+
+        const dragTd = document.createElement("td");
+        dragTd.className = "drag-cell";
+        const grip = document.createElement("button");
+        grip.type = "button";
+        grip.className = "grip";
+        grip.title = "按住拖动调整顺序";
+        grip.textContent = "⋮⋮";
+        grip.draggable = true;
+
+        grip.addEventListener("dragstart", (e) => {
+          dragFrom = rowIndex;
+          tr.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(rowIndex));
+          try {
+            e.dataTransfer.setDragImage(tr, 24, 26);
+          } catch (_) { /* ignore */ }
+        });
+
+        grip.addEventListener("dragend", () => {
+          dragFrom = null;
+          tr.classList.remove("dragging");
+          clearDragOver();
+        });
+
+        dragTd.appendChild(grip);
+        tr.appendChild(dragTd);
+
+        tr.addEventListener("dragover", (e) => {
+          if (dragFrom === null || dragFrom === rowIndex) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          clearDragOver();
+          tr.classList.add("drag-over");
+        });
+
+        tr.addEventListener("dragleave", () => {
+          tr.classList.remove("drag-over");
+        });
+
+        tr.addEventListener("drop", (e) => {
+          e.preventDefault();
+          clearDragOver();
+          if (dragFrom === null || dragFrom === rowIndex) return;
+          const [moved] = rows.splice(dragFrom, 1);
+          rows.splice(rowIndex, 0, moved);
+          dragFrom = null;
+          save();
+          render();
+        });
+
+        const nameTd = document.createElement("td");
+        nameTd.className = "name-cell";
+        const input = document.createElement("input");
+        input.className = "name-input";
+        input.type = "text";
+        input.placeholder = "输入番剧名称…";
+        input.value = row.name;
+        input.addEventListener("input", () => {
+          row.name = input.value;
+          updateNameColumnWidth();
+          save();
+        });
+        nameTd.appendChild(input);
+        tr.appendChild(nameTd);
+
+        for (let i = 0; i < EPISODES; i++) {
+          const td = document.createElement("td");
+          td.className = "ep-cell" + (i === 11 ? " ep-split" : "");
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "tick" + (row.watched[i] ? " on" : "");
+          btn.setAttribute("aria-pressed", String(row.watched[i]));
+          btn.title = row.watched[i] ? `取消第${i + 1}集` : `标记第${i + 1}集已看`;
+          btn.innerHTML = checkSvg;
+          btn.addEventListener("click", () => {
+            row.watched[i] = !row.watched[i];
+            btn.classList.toggle("on", row.watched[i]);
+            btn.setAttribute("aria-pressed", String(row.watched[i]));
+            btn.title = row.watched[i] ? `取消第${i + 1}集` : `标记第${i + 1}集已看`;
+            save();
+          });
+          td.appendChild(btn);
+          tr.appendChild(td);
+        }
+
+        const noteTd = document.createElement("td");
+        noteTd.className = "note-cell";
+        const timeEditor = document.createElement("div");
+        timeEditor.className = "time-editor";
+        const yearInput = document.createElement("input");
+        yearInput.className = "year-input";
+        yearInput.type = "text";
+        yearInput.inputMode = "numeric";
+        yearInput.maxLength = 4;
+        const dot = document.createElement("span");
+        dot.className = "time-dot";
+        dot.textContent = ".";
+        const monthSelect = document.createElement("select");
+        monthSelect.className = "month-select";
+        monthSelect.innerHTML = `<option value="">—</option><option value="1">1 月</option><option value="4">4 月</option><option value="7">7 月</option><option value="10">10 月</option>`;
+        const currentTime = parseNoteTime(row.note);
+        yearInput.value = currentTime ? String(currentTime.year).slice(-2) : "";
+        monthSelect.value = currentTime ? String(currentTime.month) : "";
+        const saveTime = () => {
+          const year = yearInput.value.replace(/\D/g, "");
+          const month = monthSelect.value;
+          row.note = year && month ? `${year}.${month}` : "";
+          save();
+        };
+        yearInput.addEventListener("input", saveTime);
+        monthSelect.addEventListener("change", saveTime);
+        timeEditor.append(yearInput, dot, monthSelect);
+        noteTd.appendChild(timeEditor);
+        tr.appendChild(noteTd);
+
+        const ops = document.createElement("td");
+        ops.className = "ops-cell";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "del";
+        del.title = "删除这一行";
+        del.textContent = "×";
+        del.addEventListener("click", () => {
+          selected.delete(row.id);
+          rows.splice(rowIndex, 1);
+          save();
+          render();
+        });
+        ops.appendChild(del);
+        tr.appendChild(ops);
+
+        body.appendChild(tr);
+      });
+
+      updateStats();
+      updateSelectUi();
+    }
+
+    function updateStats() {
+      const total = rows.length * EPISODES;
+      const done = rows.reduce((n, r) => n + r.watched.filter(Boolean).length, 0);
+      stats.textContent = `${done} / ${total} 集已看`;
+      bar.style.width = total ? `${(done / total) * 100}%` : "0%";
+    }
+
+    document.getElementById("btnAdd").addEventListener("click", () => {
+      rows.unshift(blankRow(""));
+      save();
+      render();
+      const first = body.querySelector(".name-input");
+      if (first) first.focus();
+    });
+
+    document.getElementById("btnSortAsc").addEventListener("click", () => sortByTime(false));
+    document.getElementById("btnSortDesc").addEventListener("click", () => sortByTime(true));
+    btnToTop.addEventListener("click", moveSelectedToTop);
+    document.getElementById("btnChart").addEventListener("click", drawChart);
+    document.getElementById("btnExport").addEventListener("click", exportCsv);
+    searchInput.addEventListener("input", render);
+    filterSelect.addEventListener("change", render);
+
+    buildHead();
+    render();
+  </script>
+</body>
+</html>
